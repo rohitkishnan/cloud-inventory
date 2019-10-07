@@ -28,6 +28,10 @@ def get_default_aws_details():
         # Using boto3 to get asg
         asg_response = boto3.client("autoscaling")
 
+        # Get current session using boto3 and then use that to get region
+        session = boto3.session.Session()
+        region = session.region_name
+
         # Extracting all the instances and reserved instances from the response
         if ec2_response is not None:
             ec2_instances = ec2_response.describe_instances()
@@ -99,6 +103,7 @@ def get_default_aws_details():
         if ec2_instances["Reservations"] and len(ec2_instances["Reservations"]):
             instances_file = open("instances.json","w+")
             for data in ec2_instances["Reservations"]:
+                data["region"] = region
                 json_data = json.dumps(data, default = myconverter)
                 instances_file.write(json_data)
             instances_file.close()
@@ -107,15 +112,16 @@ def get_default_aws_details():
         if (ec2_reserved_instances["ReservedInstances"] and len(ec2_reserved_instances["ReservedInstances"])):
             reservations_file = open("reservations.json","w+")
             for data in ec2_reserved_instances["ReservedInstances"]:
+                data["region"] = region
                 json_data = json.dumps(data, default = myconverter)
                 reservations_file.write(json_data)
             reservations_file.close()
                 
-
         # Stores v1_load_balancers into load_balancers.json
         if (load_balancers["LoadBalancerDescriptions"] and len(load_balancers["LoadBalancerDescriptions"])):
             load_balancers_file = open("load_balancers.json","w+")
             for data in load_balancers["LoadBalancerDescriptions"]:
+                data["region"] = region
                 json_data = json.dumps(data, default = myconverter)
                 load_balancers_file.write(json_data)
             load_balancers_file.close()
@@ -124,6 +130,7 @@ def get_default_aws_details():
         if (v2_load_balancers["LoadBalancers"] and len(v2_load_balancers["LoadBalancers"])):
             v2_load_balancers_file = open("v2_load_balancers.json","w+")
             for data in v2_load_balancers["LoadBalancers"]:
+                data["region"] = region
                 json_data = json.dumps(data, default = myconverter)
                 v2_load_balancers_file.write(json_data)
             v2_load_balancers_file.close()
@@ -132,6 +139,7 @@ def get_default_aws_details():
         if (asg_groups["AutoScalingGroups"] and len(autoscaling_groups["AutoScalingGroups"])):
             asg_file = open("autoscaling_groups.json","w+")
             for data in asg_groups["AutoScalingGroups"]:
+                data["region"] = region
                 json_data = json.dumps(data, default = myconverter)
                 asg_file.write(json_data)
             asg_file.close()
@@ -253,7 +261,7 @@ def get_specified_aws_details_for_region(access_key_id, secret_access_key, regio
         if ec2_instances["Reservations"] and len(ec2_instances["Reservations"]):
             instances_file = open("instances.json","a+")
             for data in ec2_instances["Reservations"]:
-                data["region"]=region 
+                data["region"] = region 
                 json_data = json.dumps(data, default = myconverter)
                 instances_file.write(json_data)
             instances_file.close()
@@ -262,7 +270,7 @@ def get_specified_aws_details_for_region(access_key_id, secret_access_key, regio
         if (ec2_reserved_instances["ReservedInstances"] and len(ec2_reserved_instances["ReservedInstances"])):
             reservations_file = open("reservations.json","a+")
             for data in ec2_reserved_instances["ReservedInstances"]:
-                data["region"]=region
+                data["region"] = region
                 json_data = json.dumps(data, default = myconverter)
                 reservations_file.write(json_data)
             reservations_file.close()
@@ -272,7 +280,7 @@ def get_specified_aws_details_for_region(access_key_id, secret_access_key, regio
         if (load_balancers["LoadBalancerDescriptions"] and len(load_balancers["LoadBalancerDescriptions"])):
             load_balancers_file = open("load_balancers.json","a+")
             for data in load_balancers["LoadBalancerDescriptions"]:
-                data["region"]=region
+                data["region"] = region
                 json_data = json.dumps(data, default = myconverter)
                 load_balancers_file.write(json_data)
             load_balancers_file.close()
@@ -281,7 +289,7 @@ def get_specified_aws_details_for_region(access_key_id, secret_access_key, regio
         if (v2_load_balancers["LoadBalancers"] and len(v2_load_balancers["LoadBalancers"])):
             v2_load_balancers_file = open("v2_load_balancers.json","a+")
             for data in v2_load_balancers["LoadBalancers"]:
-                data["region"]=region
+                data["region"] = region
                 json_data = json.dumps(data, default = myconverter)
                 v2_load_balancers_file.write(json_data)
             v2_load_balancers_file.close()
@@ -290,12 +298,10 @@ def get_specified_aws_details_for_region(access_key_id, secret_access_key, regio
         if (asg_groups["AutoScalingGroups"] and len(autoscaling_groups["AutoScalingGroups"])):
             asg_file = open("autoscaling_groups.json","a+")
             for data in asg_groups["AutoScalingGroups"]:
-                data["region"]=region
+                data["region"] = region
                 json_data = json.dumps(data, default = myconverter)
                 asg_file.write(json_data)
             asg_file.close()
-        
-        print("File executed successfully")
 
     except Exception as custom_error:
         print(custom_error)
@@ -314,11 +320,14 @@ def get_specified_aws_details(access_key_id, secret_access_key):
         # Getting all AWS regions
         regions = ec2_regions.describe_regions()
         for region in regions["Regions"]:
+            print("For region "+region["RegionName"])
             get_specified_aws_details_for_region(
                 access_key_id=access_key_id,
                 secret_access_key=secret_access_key,
                 region=region["RegionName"]
                 )
+
+        print("File executed successfully")
 
     except Exception as error:
         print(error)
