@@ -54,20 +54,16 @@ def get_default_aws_details():
         else:
             asg_groups = None
 
-        for ec2_instance in ec2_instances['Reservations']:
-            for ec2i in ec2_instance["Instances"]:
-                ec2i["LoadBalancerName"] = None
-
-        # Setting the LoadBalancerName of all instances under v1 load_balancer
+        instance_to_v1_load_balancer_map = {}
+        # Creating a map of instance_id to load_balancer_name for v1_load_balancer
         if load_balancers is not None:
             for load_balancer in load_balancers["LoadBalancerDescriptions"]:
                 for instance in load_balancer['Instances']:
-                    for ec2_instance in ec2_instances['Reservations']:
-                        for ec2i in ec2_instance["Instances"]:
-                            if ec2i["InstanceId"] == instance["InstanceId"]:
-                                ec2i["LoadBalancerName"] = load_balancer["LoadBalancerName"]
+                    instance_to_v1_load_balancer_map[instance["InstanceId"]] = load_balancer["LoadBalancerName"]
+                    
 
-        # Setting the LoadBalancerName of all instances under v2 load_balancer
+        instance_to_v2_load_balancer_map = {}
+        # Creating a map of instance_id to load_balancer_name for v2_load_balancer
         if v2_load_balancers is not None:
             for elbv2_lb in v2_load_balancers["LoadBalancers"]:
                 load_balancer_arn = elbv2_lb['LoadBalancerArn']
@@ -85,10 +81,19 @@ def get_default_aws_details():
                     if target_healths is None:
                         continue
                     for target_health in target_healths["TargetHealthDescriptions"]:
-                        for ec2_instance in ec2_instances['Reservations']:
-                            for ec2i in ec2_instance["Instances"]:
-                                if ec2i["InstanceId"] == target_health["Target"]["Id"]:
-                                    ec2i["LoadBalancerName"] = load_balancer_arn
+                        instance_to_v2_load_balancer_map[target_health["Target"]["Id"]] = load_balancer_arn
+
+        for ec2_instance in ec2_instances['Reservations']:
+            for ec2i in ec2_instance["Instances"]:
+                id = ec2i["InstanceId"]
+                lb_v1 = instance_to_v1_load_balancer_map.get(id)
+                lb_v2 = instance_to_v2_load_balancer_map.get(id)
+                if lb_v1 is not None:
+                    ec2i["LoadBalancerName"] = lb_v1
+                elif lb_v2 is not None:
+                    ec2i["LoadBalancerName"] = lb_v2
+                else:
+                    ec2i["LoadBalancerName"] = None
 
         # Stores instances into instances.json file
         if ec2_instances["Reservations"] and len(ec2_instances["Reservations"]):
@@ -201,20 +206,15 @@ def get_specified_aws_details_for_region(access_key_id, secret_access_key, regio
         else:
             asg_groups = None
 
-        for ec2_instance in ec2_instances['Reservations']:
-            for ec2i in ec2_instance["Instances"]:
-                ec2i["LoadBalancerName"] = None
-
-        # Setting the LoadBalancerName of all instances under v1 load_balancer
+        instance_to_v1_load_balancer_map = {}
+        # Creating a map of instance_id to load_balancer_name for v1_load_balancer
         if load_balancers is not None:
             for load_balancer in load_balancers["LoadBalancerDescriptions"]:
                 for instance in load_balancer['Instances']:
-                    for ec2_instance in ec2_instances['Reservations']:
-                        for ec2i in ec2_instance["Instances"]:
-                            if ec2i["InstanceId"] == instance["InstanceId"]:
-                                ec2i["LoadBalancerName"] = load_balancer["LoadBalancerName"]
+                    instance_to_v1_load_balancer_map[instance["InstanceId"]] = load_balancer["LoadBalancerName"]
 
-        # Setting the LoadBalancerName of all instances under v2 load_balancer
+        instance_to_v2_load_balancer_map = {}
+        # Creating a map of instance_id to load_balancer_name for v2_load_balancer
         if v2_load_balancers is not None:
             for elbv2_lb in v2_load_balancers["LoadBalancers"]:
                 load_balancer_arn = elbv2_lb['LoadBalancerArn']
@@ -232,10 +232,22 @@ def get_specified_aws_details_for_region(access_key_id, secret_access_key, regio
                     if target_healths is None:
                         continue
                     for target_health in target_healths["TargetHealthDescriptions"]:
-                        for ec2_instance in ec2_instances['Reservations']:
-                            for ec2i in ec2_instance["Instances"]:
-                                if ec2i["InstanceId"] == target_health["Target"]["Id"]:
-                                    ec2i["LoadBalancerName"] = load_balancer_arn
+                        instance_to_v2_load_balancer_map[target_health["Target"]["Id"]] = load_balancer_arn
+
+
+        for ec2_instance in ec2_instances['Reservations']:
+            for ec2i in ec2_instance["Instances"]:
+                id = ec2i["InstanceId"]
+                lb_v1 = instance_to_v1_load_balancer_map.get(id)
+                lb_v2 = instance_to_v2_load_balancer_map.get(id)
+                if lb_v1 is not None:
+                    ec2i["LoadBalancerName"] = lb_v1
+                elif lb_v2 is not None:
+                    ec2i["LoadBalancerName"] = lb_v2
+                else:
+                    ec2i["LoadBalancerName"] = None
+
+
 
         # Stores instances into instances.json file
         if ec2_instances["Reservations"] and len(ec2_instances["Reservations"]):
