@@ -28,9 +28,15 @@ def get_default_aws_details():
         # Using boto3 to get asg
         asg_response = boto3.client("autoscaling")
 
+        # Using boto3 to get sts
+        sts_response = boto3.client("sts")
+
         # Get current session using boto3 and then use that to get region
         session = boto3.session.Session()
         region = session.region_name
+
+        # Get aws_account_id from sts
+        account_id = sts_response.get_caller_identity()["Account"]
 
         # Extracting all the instances and reserved instances from the response
         if ec2_response is not None:
@@ -99,50 +105,56 @@ def get_default_aws_details():
                     ec2i["LoadBalancerName"] = lb_v2
                 else:
                     ec2i["LoadBalancerName"] = None
-
+        
+        data = {}
         # Stores instances into instances.json file
         if ec2_instances["Reservations"] and len(ec2_instances["Reservations"]):
             instances_file = open("instances.json","w+")
-            for data in ec2_instances["Reservations"]:
-                data["region"] = region
-                json_data = json.dumps(data, default = myconverter)
-                instances_file.write(json_data)
+            data["account_id"] = account_id
+            data["region"] = region
+            data["instances"] = ec2_instances["Reservations"]
+            json_data = json.dumps(data, default = myconverter)
+            instances_file.write(json_data)
             instances_file.close()
         
         # Stores reserved instances into reservations.json file
         if (ec2_reserved_instances["ReservedInstances"] and len(ec2_reserved_instances["ReservedInstances"])):
             reservations_file = open("reservations.json","w+")
-            for data in ec2_reserved_instances["ReservedInstances"]:
-                data["region"] = region
-                json_data = json.dumps(data, default = myconverter)
-                reservations_file.write(json_data)
+            data["account_id"] = account_id
+            data["region"] = region
+            data["reservations"] = ec2_reserved_instances["ReservedInstances"]
+            json_data = json.dumps(data, default = myconverter)
+            reservations_file.write(json_data)
             reservations_file.close()
                 
         # Stores v1_load_balancers into load_balancers.json
         if (load_balancers["LoadBalancerDescriptions"] and len(load_balancers["LoadBalancerDescriptions"])):
             load_balancers_file = open("load_balancers.json","w+")
-            for data in load_balancers["LoadBalancerDescriptions"]:
-                data["region"] = region
-                json_data = json.dumps(data, default = myconverter)
-                load_balancers_file.write(json_data)
+            
+            data["region"] = region
+            data["load_balancers"] = load_balancers["LoadBalancerDescriptions"]
+            json_data = json.dumps(data, default = myconverter)
+            load_balancers_file.write(json_data)
             load_balancers_file.close()
 
         # Stores v2_load_balancers into v2_load_balancers.json
         if (v2_load_balancers["LoadBalancers"] and len(v2_load_balancers["LoadBalancers"])):
             v2_load_balancers_file = open("v2_load_balancers.json","w+")
-            for data in v2_load_balancers["LoadBalancers"]:
-                data["region"] = region
-                json_data = json.dumps(data, default = myconverter)
-                v2_load_balancers_file.write(json_data)
+            data["account_id"] = account_id
+            data["region"] = region
+            data["load_balancers"] = v2_load_balancers["LoadBalancers"]
+            json_data = json.dumps(data, default = myconverter)
+            v2_load_balancers_file.write(json_data)
             v2_load_balancers_file.close()
 
         # Stores all asg_groups into autoscaling_groups.json
         if (asg_groups["AutoScalingGroups"] and len(autoscaling_groups["AutoScalingGroups"])):
             asg_file = open("autoscaling_groups.json","w+")
-            for data in asg_groups["AutoScalingGroups"]:
-                data["region"] = region
-                json_data = json.dumps(data, default = myconverter)
-                asg_file.write(json_data)
+            data["account_id"] = account_id
+            data["region"] = region
+            data["autoscaling_groups"] = asg_groups["AutoScalingGroups"]
+            json_data = json.dumps(data, default = myconverter)
+            asg_file.write(json_data)
             asg_file.close()
         
         print("File executed successfully")
@@ -155,6 +167,10 @@ def get_specified_aws_details_for_region(access_key_id, secret_access_key, regio
     """
     Fetching aws data using boto3 and the access_key_id and secret_access_key
     passed by the user and writing it into respective json file
+    Parameters:
+    access_key_id - AWS access key id
+    secret_access_key - AWS secret access key
+    region - AWS region to fetch the data from
     """
     try:
         # Using boto3 to get ec2
@@ -188,6 +204,17 @@ def get_specified_aws_details_for_region(access_key_id, secret_access_key, regio
             aws_access_key_id=access_key_id,
             aws_secret_access_key=secret_access_key
             )
+
+        # Using boto3 to get sts
+        sts_response = boto3.client(
+            "sts",
+            region_name=region,
+            aws_access_key_id=access_key_id,
+            aws_secret_access_key=secret_access_key
+            )
+
+        # Get aws_account_id from sts
+        account_id = sts_response.get_caller_identity()["Account"]
 
         # Extracting all the instances and reserved instances from the response
         if ec2_response is not None:
@@ -257,52 +284,56 @@ def get_specified_aws_details_for_region(access_key_id, secret_access_key, regio
                 else:
                     ec2i["LoadBalancerName"] = None
 
-
-
+        data = {}
         # Stores instances into instances.json file
         if ec2_instances["Reservations"] and len(ec2_instances["Reservations"]):
             instances_file = open("instances.json","a+")
-            for data in ec2_instances["Reservations"]:
-                data["region"] = region 
-                json_data = json.dumps(data, default = myconverter)
-                instances_file.write(json_data)
+            data["account_id"] = account_id
+            data["region"] = region
+            data["instances"] = ec2_instances["Reservations"]
+            json_data = json.dumps(data, default = myconverter)
+            instances_file.write(json_data)
             instances_file.close()
         
         # Stores reserved instances into reservations.json file
         if (ec2_reserved_instances["ReservedInstances"] and len(ec2_reserved_instances["ReservedInstances"])):
             reservations_file = open("reservations.json","a+")
-            for data in ec2_reserved_instances["ReservedInstances"]:
-                data["region"] = region
-                json_data = json.dumps(data, default = myconverter)
-                reservations_file.write(json_data)
+            data["account_id"] = account_id
+            data["region"] = region
+            data["reservations"] = ec2_reserved_instances["ReservedInstances"]
+            json_data = json.dumps(data, default = myconverter)
+            reservations_file.write(json_data)
             reservations_file.close()
                 
 
         # Stores v1_load_balancers into load_balancers.json
         if (load_balancers["LoadBalancerDescriptions"] and len(load_balancers["LoadBalancerDescriptions"])):
             load_balancers_file = open("load_balancers.json","a+")
-            for data in load_balancers["LoadBalancerDescriptions"]:
-                data["region"] = region
-                json_data = json.dumps(data, default = myconverter)
-                load_balancers_file.write(json_data)
+            data["account_id"] = account_id
+            data["region"] = region
+            data["load_balancers"] = load_balancers["LoadBalancerDescriptions"]
+            json_data = json.dumps(data, default = myconverter)
+            load_balancers_file.write(json_data)
             load_balancers_file.close()
 
         # Stores v2_load_balancers into v2_load_balancers.json
         if (v2_load_balancers["LoadBalancers"] and len(v2_load_balancers["LoadBalancers"])):
             v2_load_balancers_file = open("v2_load_balancers.json","a+")
-            for data in v2_load_balancers["LoadBalancers"]:
-                data["region"] = region
-                json_data = json.dumps(data, default = myconverter)
-                v2_load_balancers_file.write(json_data)
+            data["account_id"] = account_id
+            data["region"] = region
+            data["load_balancers"] = v2_load_balancers["LoadBalancers"]
+            json_data = json.dumps(data, default = myconverter)
+            v2_load_balancers_file.write(json_data)
             v2_load_balancers_file.close()
 
         # Stores all asg_groups into autoscaling_groups.json
         if (asg_groups["AutoScalingGroups"] and len(autoscaling_groups["AutoScalingGroups"])):
             asg_file = open("autoscaling_groups.json","a+")
-            for data in asg_groups["AutoScalingGroups"]:
-                data["region"] = region
-                json_data = json.dumps(data, default = myconverter)
-                asg_file.write(json_data)
+            data["account_id"] = account_id
+            data["region"] = region
+            data["autoscaling_groups"] = asg_groups["AutoScalingGroups"]
+            json_data = json.dumps(data, default = myconverter)
+            asg_file.write(json_data)
             asg_file.close()
 
     except Exception as custom_error:
@@ -310,6 +341,12 @@ def get_specified_aws_details_for_region(access_key_id, secret_access_key, regio
 
 def get_specified_aws_details(access_key_id, secret_access_key):
     """
+    This function is called when the user does not pass the region
+    as an argument and subsequently the inventory is fetched from all
+    aws regions and stored into a file
+    Parameters:
+    access_key_id - AWS access key id
+    secret_access_key - AWS secret access key
     """
     try:
         ec2_regions = boto3.client(
