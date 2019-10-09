@@ -71,6 +71,7 @@ def get_default_aws_details():
         if v2_load_balancers is not None:
             for elbv2_lb in v2_load_balancers["LoadBalancers"]:
                 load_balancer_arn = elbv2_lb['LoadBalancerArn']
+                load_balancer_name = elbv2_lb["LoadBalancerName"]
                 target_groups = elbv2_response.describe_target_groups(
                     LoadBalancerArn=load_balancer_arn
                 )
@@ -85,7 +86,7 @@ def get_default_aws_details():
                     if target_healths is None:
                         continue
                     for target_health in target_healths["TargetHealthDescriptions"]:
-                        instance_to_v2_load_balancer_map[target_health["Target"]["Id"]] = load_balancer_arn
+                        instance_to_v2_load_balancer_map[target_health["Target"]["Id"]] = load_balancer_name
 
         for ec2_instance in ec2_instances['Reservations']:
             for ec2i in ec2_instance["Instances"]:
@@ -226,6 +227,7 @@ def get_specified_aws_details_for_region(access_key_id, secret_access_key, regio
         if v2_load_balancers is not None:
             for elbv2_lb in v2_load_balancers["LoadBalancers"]:
                 load_balancer_arn = elbv2_lb['LoadBalancerArn']
+                load_balancer_name = elbv2_lb["LoadBalancerName"]
                 target_groups = elbv2_response.describe_target_groups(
                     LoadBalancerArn=load_balancer_arn
                 )
@@ -240,7 +242,7 @@ def get_specified_aws_details_for_region(access_key_id, secret_access_key, regio
                     if target_healths is None:
                         continue
                     for target_health in target_healths["TargetHealthDescriptions"]:
-                        instance_to_v2_load_balancer_map[target_health["Target"]["Id"]] = load_balancer_arn
+                        instance_to_v2_load_balancer_map[target_health["Target"]["Id"]] = load_balancer_name
 
 
         for ec2_instance in ec2_instances['Reservations']:
