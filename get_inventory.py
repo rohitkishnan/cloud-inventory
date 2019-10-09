@@ -117,6 +117,7 @@ def get_default_aws_details():
             instances_file.write(json_data)
             instances_file.close()
         
+        data = {}
         # Stores reserved instances into reservations.json file
         if (ec2_reserved_instances["ReservedInstances"] and len(ec2_reserved_instances["ReservedInstances"])):
             reservations_file = open("reservations.json","w+")
@@ -126,27 +127,32 @@ def get_default_aws_details():
             json_data = json.dumps(data, default = myconverter)
             reservations_file.write(json_data)
             reservations_file.close()
-                
+
+        data = {}        
         # Stores v1_load_balancers into load_balancers.json
         if (load_balancers["LoadBalancerDescriptions"] and len(load_balancers["LoadBalancerDescriptions"])):
             load_balancers_file = open("load_balancers.json","w+")
-            
+            data["account_id"] = account_id
             data["region"] = region
+            data["version"] = "elb"
             data["load_balancers"] = load_balancers["LoadBalancerDescriptions"]
             json_data = json.dumps(data, default = myconverter)
             load_balancers_file.write(json_data)
             load_balancers_file.close()
 
+        data = {}
         # Stores v2_load_balancers into v2_load_balancers.json
         if (v2_load_balancers["LoadBalancers"] and len(v2_load_balancers["LoadBalancers"])):
             v2_load_balancers_file = open("v2_load_balancers.json","w+")
             data["account_id"] = account_id
             data["region"] = region
+            data["version"] = "elbv2"
             data["load_balancers"] = v2_load_balancers["LoadBalancers"]
             json_data = json.dumps(data, default = myconverter)
             v2_load_balancers_file.write(json_data)
             v2_load_balancers_file.close()
 
+        data = {}
         # Stores all asg_groups into autoscaling_groups.json
         if (asg_groups["AutoScalingGroups"] and len(autoscaling_groups["AutoScalingGroups"])):
             asg_file = open("autoscaling_groups.json","w+")
@@ -295,6 +301,7 @@ def get_specified_aws_details_for_region(access_key_id, secret_access_key, regio
             instances_file.write(json_data)
             instances_file.close()
         
+        data = {}
         # Stores reserved instances into reservations.json file
         if (ec2_reserved_instances["ReservedInstances"] and len(ec2_reserved_instances["ReservedInstances"])):
             reservations_file = open("reservations.json","a+")
@@ -305,27 +312,31 @@ def get_specified_aws_details_for_region(access_key_id, secret_access_key, regio
             reservations_file.write(json_data)
             reservations_file.close()
                 
-
+        data = {}
         # Stores v1_load_balancers into load_balancers.json
         if (load_balancers["LoadBalancerDescriptions"] and len(load_balancers["LoadBalancerDescriptions"])):
             load_balancers_file = open("load_balancers.json","a+")
             data["account_id"] = account_id
             data["region"] = region
+            data["version"] = "elb"
             data["load_balancers"] = load_balancers["LoadBalancerDescriptions"]
             json_data = json.dumps(data, default = myconverter)
             load_balancers_file.write(json_data)
             load_balancers_file.close()
 
+        data = {}
         # Stores v2_load_balancers into v2_load_balancers.json
         if (v2_load_balancers["LoadBalancers"] and len(v2_load_balancers["LoadBalancers"])):
             v2_load_balancers_file = open("v2_load_balancers.json","a+")
             data["account_id"] = account_id
             data["region"] = region
+            data["version"] = "elbv2"
             data["load_balancers"] = v2_load_balancers["LoadBalancers"]
             json_data = json.dumps(data, default = myconverter)
             v2_load_balancers_file.write(json_data)
             v2_load_balancers_file.close()
 
+        data = {}
         # Stores all asg_groups into autoscaling_groups.json
         if (asg_groups["AutoScalingGroups"] and len(autoscaling_groups["AutoScalingGroups"])):
             asg_file = open("autoscaling_groups.json","a+")
