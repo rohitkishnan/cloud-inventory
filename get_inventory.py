@@ -154,7 +154,7 @@ def get_default_aws_details():
 
         data = {}
         # Stores all asg_groups into autoscaling_groups.json
-        if (asg_groups["AutoScalingGroups"] and len(autoscaling_groups["AutoScalingGroups"])):
+        if (asg_groups["AutoScalingGroups"] and len(asg_groups["AutoScalingGroups"])):
             asg_file = open("autoscaling_groups.json","w+")
             data["account_id"] = account_id
             data["region"] = region
@@ -338,7 +338,7 @@ def get_specified_aws_details_for_region(access_key_id, secret_access_key, regio
 
         data = {}
         # Stores all asg_groups into autoscaling_groups.json
-        if (asg_groups["AutoScalingGroups"] and len(autoscaling_groups["AutoScalingGroups"])):
+        if (asg_groups["AutoScalingGroups"] and len(asg_groups["AutoScalingGroups"])):
             asg_file = open("autoscaling_groups.json","a+")
             data["account_id"] = account_id
             data["region"] = region
