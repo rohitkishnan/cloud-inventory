@@ -57,8 +57,14 @@ def get_aws_data_for_region(region):
         if load_balancers is not None:
             for load_balancer in load_balancers["LoadBalancerDescriptions"]:
                 for instance in load_balancer['Instances']:
-                    instance_to_v1_load_balancer_map[instance["InstanceId"]] = load_balancer["LoadBalancerName"]
-                    
+                    list_of_load_balancer_names = instance_to_v1_load_balancer_map.get(instance["InstanceId"])
+                    if list_of_load_balancer_names is None:
+                        list_of_load_balancer_names = []
+                        list_of_load_balancer_names.append(load_balancer["LoadBalancerName"])
+                        instance_to_v1_load_balancer_map[instance["InstanceId"]] = list_of_load_balancer_names
+                    else:
+                        list_of_load_balancer_names.append(load_balancer["LoadBalancerName"])
+                        instance_to_v1_load_balancer_map[instance["InstanceId"]] = list_of_load_balancer_names
 
         instance_to_v2_load_balancer_map = {}
         # Creating a map of instance_id to load_balancer_name for v2_load_balancer
