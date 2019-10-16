@@ -1,3 +1,7 @@
+"""
+This script needs to be run on an aws instance and it will generate instances,
+load_balancers, v2_load_balancers, autoscaling_groups json files
+"""
 import boto3
 import datetime
 import json
@@ -52,41 +56,11 @@ def get_aws_data_for_region(region):
         else:
             asg_groups = None
 
-        instance_to_v1_load_balancer_map = {}
-        # Creating a map of instance_id to load_balancer_name for v1_load_balancer
-        if load_balancers is not None:
-            for load_balancer in load_balancers["LoadBalancerDescriptions"]:
-                for instance in load_balancer['Instances']:
-                    list_of_load_balancer_names = instance_to_v1_load_balancer_map.get(instance["InstanceId"])
-                    if list_of_load_balancer_names is None:
-                        list_of_load_balancer_names = []
-                        list_of_load_balancer_names.append(load_balancer["LoadBalancerName"])
-                        instance_to_v1_load_balancer_map[instance["InstanceId"]] = list_of_load_balancer_names
-                    else:
-                        list_of_load_balancer_names.append(load_balancer["LoadBalancerName"])
-                        instance_to_v1_load_balancer_map[instance["InstanceId"]] = list_of_load_balancer_names
+        # Getting a map of instance_id to load_balancer_name for v1_load_balancers
+        instance_to_v1_load_balancer_map = instance_to_v1_load_balancers_map(load_balancers)
 
-        instance_to_v2_load_balancer_map = {}
-        # Creating a map of instance_id to load_balancer_name for v2_load_balancer
-        if v2_load_balancers is not None:
-            for elbv2_lb in v2_load_balancers["LoadBalancers"]:
-                load_balancer_arn = elbv2_lb['LoadBalancerArn']
-                load_balancer_name = elbv2_lb["LoadBalancerName"]
-                target_groups = elbv2_response.describe_target_groups(
-                    LoadBalancerArn=load_balancer_arn
-                )
-                if target_groups is None:
-                    continue
-                for target_group in target_groups["TargetGroups"]:
-                    target_group_arn = target_group['TargetGroupArn']
-
-                    target_healths = elbv2_response.describe_target_health(
-                        TargetGroupArn=target_group_arn
-                    )
-                    if target_healths is None:
-                        continue
-                    for target_health in target_healths["TargetHealthDescriptions"]:
-                        instance_to_v2_load_balancer_map[target_health["Target"]["Id"]] = load_balancer_name
+        # Getting a map of instance_id to load_balancer_name for v2_load_balancers
+        instance_to_v2_load_balancer_map = instance_to_v2_load_balancers_map(v2_load_balancers,elbv2_response)
 
         for ec2_instance in ec2_instances['Reservations']:
             for ec2i in ec2_instance["Instances"]:
@@ -99,66 +73,181 @@ def get_aws_data_for_region(region):
                     ec2i["LoadBalancerName"] = lb_v2
                 else:
                     ec2i["LoadBalancerName"] = None
-        
-        data = {}
-        # Stores instances into instances.json file
-        if ec2_instances["Reservations"] and len(ec2_instances["Reservations"]):
-            instances_file = open("instances.json","w+")
-            data["account_id"] = account_id
-            data["region"] = region
-            data["instances"] = ec2_instances["Reservations"]
-            json_data = json.dumps(data, default = myconverter)
-            instances_file.write(json_data)
+
+        spot_instances = []
+        # Extracting all spot instances from ec2_instances
+        for ec2_instance in ec2_instances['Reservations']:
+            for ec2i in ec2_instance['Instances']:
+                if ec2i.get('InstanceLifecycle') == 'spot':
+                    spot_instances.append(ec2_instance)
+    
+        # Stores the instances into instances.json
+        if (ec2_instances["Reservations"] and len(ec2_instances["Reservations"])):
+            instances_file = open("instances.json","a+")
+            create_json_file(
+                instances_file,
+                ec2_instances,
+                "Reservations",
+                "instances",
+                account_id,
+                region
+            )
             instances_file.close()
-        
-        data = {}
-        # Stores reserved instances into reservations.json file
+
+        # Storing all spot_instances into a file
+        if (spot_instances is not None and len(spot_instances)):
+            spot_instances_file = open("spot_instances.json","a+")
+            for spot_instance in spot_instances:
+                create_json_file(
+                    spot_instances_file,
+                    spot_instance,
+                    "Instances",
+                    "instances",
+                    account_id,
+                    region
+                )
+            spot_instances_file.close()
+
+        # Stores the reserved instances into reservations.json
         if (ec2_reserved_instances["ReservedInstances"] and len(ec2_reserved_instances["ReservedInstances"])):
-            reservations_file = open("reservations.json","w+")
-            data["account_id"] = account_id
-            data["region"] = region
-            data["reservations"] = ec2_reserved_instances["ReservedInstances"]
-            json_data = json.dumps(data, default = myconverter)
-            reservations_file.write(json_data)
+            reservations_file = open("reservations.json","a+")
+            create_json_file(
+                reservations_file,
+                ec2_reserved_instances,
+                "ReservedInstances",
+                "reservations",
+                account_id,
+                region
+            )
             reservations_file.close()
 
-        data = {}        
         # Stores v1_load_balancers into load_balancers.json
         if (load_balancers["LoadBalancerDescriptions"] and len(load_balancers["LoadBalancerDescriptions"])):
-            load_balancers_file = open("load_balancers.json","w+")
-            data["account_id"] = account_id
-            data["region"] = region
-            data["version"] = "elb"
-            data["load_balancers"] = load_balancers["LoadBalancerDescriptions"]
-            json_data = json.dumps(data, default = myconverter)
-            load_balancers_file.write(json_data)
+            load_balancers_file = open("load_balancers.json","a+")
+            create_json_file_for_load_balancers(
+                load_balancers_file,
+                load_balancers,
+                "LoadBalancerDescriptions",
+                "load_balancers",
+                "elb",
+                account_id,
+                region
+            )
             load_balancers_file.close()
 
-        data = {}
         # Stores v2_load_balancers into v2_load_balancers.json
         if (v2_load_balancers["LoadBalancers"] and len(v2_load_balancers["LoadBalancers"])):
-            v2_load_balancers_file = open("v2_load_balancers.json","w+")
-            data["account_id"] = account_id
-            data["region"] = region
-            data["version"] = "elbv2"
-            data["load_balancers"] = v2_load_balancers["LoadBalancers"]
-            json_data = json.dumps(data, default = myconverter)
-            v2_load_balancers_file.write(json_data)
+            v2_load_balancers_file = open("v2_load_balancers.json","a+")
+            create_json_file_for_load_balancers(
+                v2_load_balancers_file,
+                v2_load_balancers,
+                "LoadBalancers",
+                "load_balancers",
+                "elbv2",
+                account_id,
+                region
+            )
             v2_load_balancers_file.close()
 
-        data = {}
         # Stores all asg_groups into autoscaling_groups.json
         if (asg_groups["AutoScalingGroups"] and len(asg_groups["AutoScalingGroups"])):
-            asg_file = open("autoscaling_groups.json","w+")
-            data["account_id"] = account_id
-            data["region"] = region
-            data["autoscaling_groups"] = asg_groups["AutoScalingGroups"]
-            json_data = json.dumps(data, default = myconverter)
-            asg_file.write(json_data)
+            asg_file = open("autoscaling_groups.json","a+")
+            create_json_file(
+                asg_file,
+                asg_groups,
+                "AutoScalingGroups",
+                "autoscaling_groups",
+                account_id,
+                region
+            )
             asg_file.close()
 
     except Exception as custom_error:
         print(custom_error)
+
+def instance_to_v1_load_balancers_map(load_balancers):
+    """
+    Returns a dictionary of instance_id to v1_load_balancer_name
+    of all instances under v1 load balancers
+    Parameters : 
+    load_balancers - list of v1 load balancers
+    """
+    instance_to_v1_load_balancer_map = {}
+    for load_balancer in load_balancers["LoadBalancerDescriptions"]:
+        for instance in load_balancer['Instances']:
+            list_of_load_balancer_names = instance_to_v1_load_balancer_map.get(instance["InstanceId"])
+            if list_of_load_balancer_names is None:
+                list_of_load_balancer_names = []
+                list_of_load_balancer_names.append(load_balancer["LoadBalancerName"])
+                instance_to_v1_load_balancer_map[instance["InstanceId"]] = list_of_load_balancer_names
+            else:
+                list_of_load_balancer_names.append(load_balancer["LoadBalancerName"])
+                instance_to_v1_load_balancer_map[instance["InstanceId"]] = list_of_load_balancer_names
+    return instance_to_v1_load_balancer_map
+
+def instance_to_v2_load_balancers_map(v2_load_balancers, elbv2_response):
+    """
+    Returns a dictionary of instance_id to v2_load_balancer_name
+    of all instances under v2 load balancers
+    Parameters :
+    v2_load_balancers - list of v2 load balancers
+    """
+    instance_to_v2_load_balancer_map = {}
+    for elbv2_lb in v2_load_balancers["LoadBalancers"]:
+        load_balancer_arn = elbv2_lb['LoadBalancerArn']
+        load_balancer_name = elbv2_lb["LoadBalancerName"]
+        target_groups = elbv2_response.describe_target_groups(
+                    LoadBalancerArn=load_balancer_arn
+                )
+        if target_groups is None:
+            continue
+                
+        for target_group in target_groups["TargetGroups"]:
+            target_group_arn = target_group['TargetGroupArn']
+
+            target_healths = elbv2_response.describe_target_health(
+                TargetGroupArn=target_group_arn
+                )
+            
+            if target_healths is None:
+                continue
+
+            for target_health in target_healths["TargetHealthDescriptions"]:
+                if target_health['TargetHealth']['State'] == 'healthy':
+                    list_of_v2_load_balancer_names = instance_to_v2_load_balancer_map.get(
+                        target_health["Target"]["Id"]
+                        )
+                    if list_of_v2_load_balancer_names is None:
+                        list_of_v2_load_balancer_names = []
+                        list_of_v2_load_balancer_names.append(load_balancer_name)
+                        instance_to_v2_load_balancer_map[target_health["Target"]["Id"]] = list_of_v2_load_balancer_names
+                    else:
+                        list_of_v2_load_balancer_names.append(load_balancer_name)
+                        instance_to_v2_load_balancer_map[target_health["Target"]["Id"]] = list_of_v2_load_balancer_names
+    return instance_to_v2_load_balancer_map
+
+def create_json_file(file_name, dictionary, key, field, account_id, region):
+    """
+    This will accept the parameters and create the json files
+    """
+    data = {}
+    data["account_id"] = account_id
+    data["region"] = region
+    data[field] = dictionary[key]
+    json_data = json.dumps(data, default = myconverter)
+    file_name.write(json_data)
+
+def create_json_file_for_load_balancers(file_name, dictionary, key, field, version, account_id, region):
+    """
+    """
+    data = {}
+    data["account_id"] = account_id
+    data["region"] = region
+    data[field] = dictionary[key]
+    data["version"] = version
+    json_data = json.dumps(data, default = myconverter)
+    file_name.write(json_data)
+    
 
 def fetch_data():
     """
@@ -182,7 +271,6 @@ def fetch_data():
             get_aws_data_for_region(
                 region=region["RegionName"]
                 )
-
         print("File executed successfully")
 
     except Exception as error:
