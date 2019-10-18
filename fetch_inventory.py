@@ -64,6 +64,10 @@ def get_aws_data_for_region(region):
 
         for ec2_instance in ec2_instances['Reservations']:
             for ec2i in ec2_instance["Instances"]:
+                if ec2i.get('InstanceLifecycle') == 'spot':
+                    ec2i['spot'] = True
+                else:
+                    ec2i['spot'] = False
                 id = ec2i["InstanceId"]
                 lb_v1 = instance_to_v1_load_balancer_map.get(id)
                 lb_v2 = instance_to_v2_load_balancer_map.get(id)
@@ -74,16 +78,10 @@ def get_aws_data_for_region(region):
                 else:
                     ec2i["LoadBalancerName"] = None
 
-        spot_instances = []
-        # Extracting all spot instances from ec2_instances
-        for ec2_instance in ec2_instances['Reservations']:
-            for ec2i in ec2_instance['Instances']:
-                if ec2i.get('InstanceLifecycle') == 'spot':
-                    spot_instances.append(ec2_instance)
     
         # Stores the instances into instances.json
         if (ec2_instances["Reservations"] and len(ec2_instances["Reservations"])):
-            instances_file = open("instances.json","a+")
+            instances_file = open("./inventory/instances.json","a+")
             create_json_file(
                 instances_file,
                 ec2_instances,
@@ -94,23 +92,9 @@ def get_aws_data_for_region(region):
             )
             instances_file.close()
 
-        # Storing all spot_instances into a file
-        if (spot_instances is not None and len(spot_instances)):
-            spot_instances_file = open("spot_instances.json","a+")
-            for spot_instance in spot_instances:
-                create_json_file(
-                    spot_instances_file,
-                    spot_instance,
-                    "Instances",
-                    "instances",
-                    account_id,
-                    region
-                )
-            spot_instances_file.close()
-
         # Stores the reserved instances into reservations.json
         if (ec2_reserved_instances["ReservedInstances"] and len(ec2_reserved_instances["ReservedInstances"])):
-            reservations_file = open("reservations.json","a+")
+            reservations_file = open("./inventory/reservations.json","a+")
             create_json_file(
                 reservations_file,
                 ec2_reserved_instances,
@@ -123,7 +107,7 @@ def get_aws_data_for_region(region):
 
         # Stores v1_load_balancers into load_balancers.json
         if (load_balancers["LoadBalancerDescriptions"] and len(load_balancers["LoadBalancerDescriptions"])):
-            load_balancers_file = open("load_balancers.json","a+")
+            load_balancers_file = open("./inventory/load_balancers.json","a+")
             create_json_file_for_load_balancers(
                 load_balancers_file,
                 load_balancers,
@@ -137,7 +121,7 @@ def get_aws_data_for_region(region):
 
         # Stores v2_load_balancers into v2_load_balancers.json
         if (v2_load_balancers["LoadBalancers"] and len(v2_load_balancers["LoadBalancers"])):
-            v2_load_balancers_file = open("v2_load_balancers.json","a+")
+            v2_load_balancers_file = open("./inventory/v2_load_balancers.json","a+")
             create_json_file_for_load_balancers(
                 v2_load_balancers_file,
                 v2_load_balancers,
@@ -151,7 +135,7 @@ def get_aws_data_for_region(region):
 
         # Stores all asg_groups into autoscaling_groups.json
         if (asg_groups["AutoScalingGroups"] and len(asg_groups["AutoScalingGroups"])):
-            asg_file = open("autoscaling_groups.json","a+")
+            asg_file = open("./inventory/autoscaling_groups.json","a+")
             create_json_file(
                 asg_file,
                 asg_groups,
